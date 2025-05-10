@@ -1,0 +1,12 @@
+server:
+  port: ${APP_PORT:8084}
+spring:
+  application:
+    name: tt-team
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/tt_team
+    username: test
+    password: ${DB_PG_PWD}
+services:
+  user-service-url: http://localhost:8081
