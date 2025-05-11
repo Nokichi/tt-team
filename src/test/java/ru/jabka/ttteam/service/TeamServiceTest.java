@@ -214,15 +214,88 @@ class TeamServiceTest {
         Mockito.verify(teamRepository, Mockito.never()).insert(Mockito.any());
     }
 
-    private Set<UserResponse> idSetToManagerSet(final Set<Long> ids) {
-        return idSetToResponseSet(ids, UserRole.MANAGER);
+    @Test
+    void update_error_nullRequest() {
+        final BadRequestException exception = Assertions.assertThrows(
+                BadRequestException.class,
+                () -> teamService.update(null)
+        );
+        Assertions.assertEquals("Заполните данные для редактирования команды", exception.getMessage());
+        Mockito.verify(teamRepository, Mockito.never()).update(Mockito.any());
     }
 
-    private Set<UserResponse> idSetToResponseSet(final Set<Long> ids, final UserRole role) {
+    @Test
+    void update_error_nullUpdatedBy() {
+        UpdateTeamRequest request = UpdateTeamRequest.builder()
+                .id(1L)
+                .updatedBy(null)
+                .build();
+        final BadRequestException exception = Assertions.assertThrows(
+                BadRequestException.class,
+                () -> teamService.update(request)
+        );
+        Assertions.assertEquals("Заполните id редактора команды", exception.getMessage());
+        Mockito.verify(teamRepository, Mockito.never()).update(Mockito.any());
+    }
+
+    @Test
+    void update_error_updatedByNotManager() {
+        UpdateTeamRequest request = UpdateTeamRequest.builder()
+                .id(1L)
+                .updatedBy(2L)
+                .build();
+        UserResponse updatedByResponse = UserResponse.builder()
+                .id(request.updatedBy())
+                .role(UserRole.USER)
+                .build();
+        Set<Long> userIds = Set.of(request.updatedBy());
+        Mockito.when(userClient.getAllByIds(userIds))
+                .thenReturn(Set.of(updatedByResponse));
+        final BadRequestException exception = Assertions.assertThrows(
+                BadRequestException.class,
+                () -> teamService.update(request)
+        );
+        Assertions.assertEquals(String.format("Роль пользователя id = %d не соответствует роли %s", request.updatedBy(), UserRole.MANAGER), exception.getMessage());
+        Mockito.verify(teamRepository, Mockito.never()).update(Mockito.any());
+    }
+
+    @Test
+    void update_error_ownerNotManager() {
+        UpdateTeamRequest request = UpdateTeamRequest.builder()
+                .id(1L)
+                .ownerId(2L)
+                .updatedBy(3L)
+                .build();
+        UserResponse updatedByResponse = UserResponse.builder()
+                .id(request.updatedBy())
+                .role(UserRole.MANAGER)
+                .build();
+        Mockito.when(userClient.getAllByIds(Set.of(request.updatedBy())))
+                .thenReturn(Set.of(updatedByResponse));
+        UserResponse ownerResponse = UserResponse.builder()
+                .id(request.ownerId())
+                .role(UserRole.USER)
+                .build();
+        Mockito.when(userClient.getAllByIds(Set.of(request.ownerId())))
+                .thenReturn(Set.of(ownerResponse));
+        Team team = Team.builder()
+                .id(request.id())
+                .name("name")
+                .build();
+        Mockito.when(teamRepository.getById(team.id())).thenReturn(team);
+        final BadRequestException exception = Assertions.assertThrows(
+                BadRequestException.class,
+                () -> teamService.update(request)
+        );
+        Assertions.assertEquals(String.format("Роль пользователя id = %d не соответствует роли %s", request.ownerId(), UserRole.MANAGER), exception.getMessage());
+        Mockito.verify(teamRepository, Mockito.never()).update(Mockito.any());
+    }
+
+    private Set<UserResponse> idSetToManagerSet(final Set<Long> ids) {
         return ids.stream()
                 .map(x -> UserResponse.builder()
                         .id(x)
-                        .role(role)
+                        .role(UserRole.MANAGER)
                         .build())
                 .collect(Collectors.toSet());
     }

@@ -67,6 +67,7 @@ public class TeamService {
 
     private void validateUpdateTeamRequest(final UpdateTeamRequest request) {
         ofNullable(request).orElseThrow(() -> new BadRequestException("Заполните данные для редактирования команды"));
+        ofNullable(request.id()).orElseThrow(() -> new BadRequestException("Заполните ID команды для редактирования"));
         Long editor = request.updatedBy();
         ofNullable(editor).orElseThrow(() -> new BadRequestException("Заполните id редактора команды"));
         validateUsersAsManagers(Set.of(editor));
